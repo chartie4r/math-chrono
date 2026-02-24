@@ -1,0 +1,18 @@
+{
+  "name": "MathChrono",
+  "short_name": "MathChrono",
+  "description": "Quiz de maths quotidien",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#eef2ff",
+  "theme_color": "#4f46e5",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

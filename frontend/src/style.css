@@ -1,0 +1,19 @@
+@import "tailwindcss";
+
+@layer base {
+  html {
+    font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;
+    /* Fill the full iOS viewport including safe areas */
+    height: -webkit-fill-available;
+  }
+
+  body {
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
+  }
+
+  /* Prevent double-tap zoom on all interactive elements */
+  button, a, input {
+    touch-action: manipulation;
+  }
+}
