@@ -1,4 +1,59 @@
 <template>
+  <!-- Monday prompt modal -->
+  <Teleport to="body">
+    <Transition name="modal">
+      <div
+        v-if="store.shouldShowMondayPrompt"
+        class="fixed inset-0 z-50 flex items-center justify-center px-5"
+        style="background: rgba(0,0,0,0.55)"
+      >
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-sm px-8 py-8 text-center">
+
+          <!-- Icon -->
+          <div class="text-6xl mb-4">🎒</div>
+
+          <!-- Title -->
+          <h2 class="text-2xl font-black text-gray-800 mb-2">C'est lundi !</h2>
+          <p class="text-gray-500 font-semibold mb-1">Tu as passé ton test vendredi.</p>
+          <p class="text-gray-500 mb-5">Est-ce que tu l'as réussi ?</p>
+
+          <!-- Current & next stage info -->
+          <div class="bg-indigo-50 rounded-2xl px-4 py-3 mb-6 text-sm">
+            <p class="text-indigo-400 font-bold uppercase tracking-widest text-xs mb-1">Niveau actuel</p>
+            <p class="font-black text-indigo-700 text-base">{{ store.activeStage.name }}</p>
+            <template v-if="store.nextStage">
+              <p class="text-gray-400 text-xs mt-2">✅ Si oui → passage à</p>
+              <p class="font-black text-green-600 text-base">{{ store.nextStage.name }}</p>
+            </template>
+            <template v-else>
+              <p class="text-yellow-600 font-bold text-xs mt-2">🏆 Tu es déjà au niveau maximum !</p>
+            </template>
+          </div>
+
+          <!-- Buttons -->
+          <div class="flex flex-col gap-3">
+            <button
+              v-if="store.nextStage"
+              @click="onPassedTest"
+              class="bg-green-500 active:scale-95 text-white text-xl font-black py-5 rounded-2xl shadow transition-all"
+            >
+              Oui, j'ai réussi ! 🎉
+            </button>
+            <button
+              @click="onDismiss"
+              class="font-black text-lg py-5 rounded-2xl transition-all active:scale-95"
+              :class="store.nextStage
+                ? 'bg-gray-100 text-gray-600'
+                : 'bg-indigo-600 text-white shadow'"
+            >
+              {{ store.nextStage ? 'Pas encore 😅' : 'Super, continuons ! 💪' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Transition>
+  </Teleport>
+
   <div class="flex flex-col items-center justify-center min-h-screen min-h-dvh px-5 py-10">
 
     <!-- Header -->
@@ -65,6 +120,38 @@
       </div>
     </div>
 
+    <!-- Last week stats card -->
+    <div v-if="store.lastWeekStats" class="bg-white rounded-2xl shadow-sm w-full mb-6 border border-gray-100 overflow-hidden">
+      <div class="bg-gray-50 px-6 py-2.5 flex items-center justify-between">
+        <p class="text-sm font-black text-gray-400 uppercase tracking-widest">Semaine dernière</p>
+      </div>
+      <div class="grid grid-cols-3 divide-x divide-gray-100 py-3">
+        <div class="text-center px-2">
+          <p class="text-2xl font-black text-gray-500">{{ store.lastWeekStats.count }}</p>
+          <p class="text-xs font-bold text-gray-300 mt-1">Quiz</p>
+        </div>
+        <div class="text-center px-2">
+          <p class="text-2xl font-black text-yellow-400">{{ store.lastWeekStats.best }}</p>
+          <p class="text-xs font-bold text-gray-300 mt-1">Meilleur</p>
+        </div>
+        <div class="text-center px-2">
+          <p class="text-2xl font-black text-green-400">{{ store.lastWeekStats.avg }}</p>
+          <p class="text-xs font-bold text-gray-300 mt-1">Moyenne</p>
+        </div>
+      </div>
+      <!-- Mini score bars for last week -->
+      <div class="px-6 pb-3 flex items-end gap-1.5 h-8 justify-center">
+        <div
+          v-for="r in [...store.lastWeekResults].reverse()"
+          :key="r.id"
+          class="rounded-t flex-1 max-w-6 opacity-50"
+          :class="barColor(r.score, r.total)"
+          :style="{ height: barHeight(r.score, r.total) }"
+          :title="`${r.score}/20`"
+        />
+      </div>
+    </div>
+
     <!-- Start button -->
     <button
       @click="startQuiz"
@@ -106,6 +193,15 @@ function startQuiz() {
   router.push('/quiz')
 }
 
+function onPassedTest() {
+  store.advanceStage()
+  store.dismissMondayPrompt()
+}
+
+function onDismiss() {
+  store.dismissMondayPrompt()
+}
+
 const difficultyBadgeClass = computed(() => {
   const id = store.difficultyId
   if (id === 'easy')   return 'bg-green-100 text-green-700'
@@ -126,3 +222,24 @@ function barColor(score, total) {
   return 'bg-red-400'
 }
 </script>
+
+<style scoped>
+.modal-enter-active,
+.modal-leave-active {
+  transition: opacity 0.25s ease;
+}
+.modal-enter-active .bg-white,
+.modal-leave-active .bg-white {
+  transition: transform 0.25s ease, opacity 0.25s ease;
+}
+.modal-enter-from,
+.modal-leave-to {
+  opacity: 0;
+}
+.modal-enter-from .bg-white {
+  transform: scale(0.9) translateY(16px);
+}
+.modal-leave-to .bg-white {
+  transform: scale(0.95) translateY(8px);
+}
+</style>

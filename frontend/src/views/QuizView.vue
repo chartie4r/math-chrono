@@ -43,7 +43,8 @@
     <!-- ── Question card ── -->
     <div
       class="flex-1 flex flex-col items-center justify-center w-full rounded-3xl shadow-xl border-2 transition-all duration-200 py-6 px-6 mb-4 min-h-0"
-      :class="feedbackClass"
+      :class="[feedbackClass, cardAnimClass]"
+      @animationend="cardAnimClass = ''"
     >
       <p class="text-xs font-bold text-indigo-300 uppercase tracking-widest mb-3">
         {{ store.activeStage.name }} · {{ store.activeDifficulty.emoji }} {{ store.activeDifficulty.label }}
@@ -58,9 +59,11 @@
       <!-- Answer display -->
       <div
         class="flex items-center justify-center rounded-2xl border-4 px-8 min-w-28 h-20 transition-all"
-        :class="typedAnswer
-          ? 'border-indigo-400 bg-indigo-50'
-          : 'border-dashed border-gray-300 bg-white'"
+        :class="[
+          typedAnswer ? 'border-indigo-400 bg-indigo-50' : 'border-dashed border-gray-300 bg-white',
+          answerAnimClass,
+        ]"
+        @animationend="answerAnimClass = ''"
       >
         <span
           class="font-black tabular-nums transition-all"
@@ -125,6 +128,8 @@ const typedAnswer = ref('')   // string built digit by digit
 const timeLeft = ref(TOTAL_SECONDS)
 const showFeedback = ref(false)
 const lastCorrect = ref(false)
+const cardAnimClass = ref('')    // 'anim-shake' on wrong
+const answerAnimClass = ref('')  // 'anim-bounce' on correct
 
 let timerInterval = null
 
@@ -191,6 +196,12 @@ async function submitAnswer() {
   const correct = userNum === currentQuestion.value.answer
   lastCorrect.value = correct
   showFeedback.value = true
+  // Trigger animation
+  if (correct) {
+    answerAnimClass.value = 'anim-bounce'
+  } else {
+    cardAnimClass.value = 'anim-shake'
+  }
 
   answers.value.push({
     question: currentQuestion.value.text,
@@ -248,10 +259,37 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.pop-enter-active { animation: pop-in 0.2s ease-out; }
+/* Feedback text pop */
+.pop-enter-active { animation: pop-in 0.22s ease-out; }
 .pop-leave-active { animation: pop-in 0.15s ease-in reverse; }
 @keyframes pop-in {
-  from { transform: scale(0.7); opacity: 0; }
+  from { transform: scale(0.6); opacity: 0; }
   to   { transform: scale(1);   opacity: 1; }
+}
+
+/* Wrong answer — card shakes side-to-side */
+.anim-shake {
+  animation: shake 0.45s ease-in-out;
+}
+@keyframes shake {
+  0%,100% { transform: translateX(0); }
+  15%     { transform: translateX(-10px); }
+  30%     { transform: translateX(10px); }
+  45%     { transform: translateX(-7px); }
+  60%     { transform: translateX(7px); }
+  75%     { transform: translateX(-4px); }
+  90%     { transform: translateX(4px); }
+}
+
+/* Correct answer — answer box bounces */
+.anim-bounce {
+  animation: bounce-answer 0.5s ease-out;
+}
+@keyframes bounce-answer {
+  0%   { transform: scale(1); }
+  25%  { transform: scale(1.25); }
+  55%  { transform: scale(0.92); }
+  75%  { transform: scale(1.08); }
+  100% { transform: scale(1); }
 }
 </style>
