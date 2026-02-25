@@ -33,7 +33,7 @@
         />
       </div>
 
-      <!-- Progress dots -->
+      <!-- Progress dots (no correct/incorrect state) -->
       <div class="flex gap-1 md:gap-2 mt-2 flex-wrap justify-center">
         <div
           v-for="(_, i) in questions"
@@ -41,8 +41,7 @@
           class="w-3 h-3 md:w-4 md:h-4 rounded-full transition-colors"
           :class="{
             'bg-indigo-600 scale-125': i === currentIndex,
-            'bg-green-400': i < currentIndex && answers[i]?.correct,
-            'bg-red-400':   i < currentIndex && !answers[i]?.correct,
+            'bg-indigo-400': i < currentIndex,
             'bg-gray-200':  i > currentIndex,
           }"
         />
@@ -51,8 +50,8 @@
 
     <!-- ── Question card ── -->
     <div
-      class="flex-1 flex flex-col items-center justify-center w-full rounded-3xl shadow-xl border-2 transition-all duration-200 py-6 px-6 md:py-10 md:px-10 mb-4 md:mb-6 min-h-0"
-      :class="[feedbackClass, cardAnimClass]"
+      class="flex-1 flex flex-col items-center justify-center w-full rounded-3xl shadow-xl border-2 border-transparent bg-white transition-all duration-200 py-6 px-6 md:py-10 md:px-10 mb-4 md:mb-6 min-h-0"
+      :class="cardAnimClass"
       @animationend="cardAnimClass = ''"
     >
       <p class="text-xs md:text-sm font-bold text-indigo-300 uppercase tracking-widest mb-3 md:mb-4">
@@ -83,15 +82,6 @@
         </span>
       </div>
 
-      <!-- Feedback -->
-      <transition name="pop">
-        <div v-if="showFeedback" class="mt-4 md:mt-5 text-center">
-          <p v-if="lastCorrect" class="text-2xl md:text-3xl font-black text-green-500">✅ Correct !</p>
-          <p v-else class="text-xl md:text-2xl font-black text-red-500">
-            ❌ La réponse était <span class="text-2xl md:text-3xl">{{ currentQuestion?.answer }}</span>
-          </p>
-        </div>
-      </transition>
     </div>
 
     <!-- Numpad (disabled when quit modal is open) -->
@@ -168,7 +158,6 @@ const answers = ref([])
 const typedAnswer = ref('')   // string built digit by digit
 const timeLeft = ref(TOTAL_SECONDS)
 const showFeedback = ref(false)
-const lastCorrect = ref(false)
 const cardAnimClass = ref('')    // 'anim-shake' on wrong
 const answerAnimClass = ref('')  // 'anim-bounce' on correct
 const showQuitConfirm = ref(false)
@@ -183,11 +172,6 @@ const formattedTime = computed(() => {
 })
 const timerPercent = computed(() => (timeLeft.value / TOTAL_SECONDS) * 100)
 const warningThreshold = Math.round(TOTAL_SECONDS * 0.15)
-
-const feedbackClass = computed(() => {
-  if (!showFeedback.value) return 'border-transparent bg-white'
-  return lastCorrect.value ? 'border-green-300 bg-green-50' : 'border-red-300 bg-red-50'
-})
 
 // Numpad layout — rows: 7 8 9 / 4 5 6 / 1 2 3 / ⌫ 0 ✓ (text sizes responsive for iPad)
 const numpadKeys = [
@@ -236,7 +220,6 @@ async function submitAnswer() {
 
   const userNum = Number(typedAnswer.value)
   const correct = userNum === currentQuestion.value.answer
-  lastCorrect.value = correct
   showFeedback.value = true
   // Trigger animation
   if (correct) {
@@ -354,14 +337,6 @@ onUnmounted(() => {
 .modal-enter-from .modal-box,
 .modal-leave-to .modal-box {
   transform: scale(0.95);
-}
-
-/* Feedback text pop */
-.pop-enter-active { animation: pop-in 0.22s ease-out; }
-.pop-leave-active { animation: pop-in 0.15s ease-in reverse; }
-@keyframes pop-in {
-  from { transform: scale(0.6); opacity: 0; }
-  to   { transform: scale(1);   opacity: 1; }
 }
 
 /* Wrong answer — card shakes side-to-side */
