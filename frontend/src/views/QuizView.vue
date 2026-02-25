@@ -3,10 +3,7 @@
 
     <!-- ── Top bar ── -->
     <div class="w-full mb-3 md:mb-4">
-      <div class="flex items-center justify-between gap-2 mb-2">
-        <span class="text-sm md:text-base font-bold text-gray-500">
-          Question <span class="text-indigo-600">{{ currentIndex + 1 }}</span> / {{ questions.length }}
-        </span>
+      <div class="flex items-center justify-end gap-2 mb-2">
         <div class="flex items-center gap-3 md:gap-4">
           <span
             class="text-xl md:text-2xl font-black tabular-nums transition-colors"
@@ -21,6 +18,14 @@
           >
             Quitter
           </button>
+          <button
+            v-if="allQuestionsAnswered && !showQuitConfirm && !showEndConfirm"
+            @click="openEndConfirm"
+            class="text-sm md:text-base font-semibold text-white bg-green-500 border border-green-600 rounded-xl py-2 px-4 md:py-2.5 md:px-5 min-h-[44px] flex items-center justify-center shrink-0 shadow-sm hover:bg-green-600 active:bg-green-700 transition-colors select-none"
+            aria-label="Terminer le quiz"
+          >
+            Terminer
+          </button>
         </div>
       </div>
 
@@ -33,17 +38,19 @@
         />
       </div>
 
-      <!-- Progress dots (no correct/incorrect state) -->
-      <div class="flex gap-1 md:gap-2 mt-2 flex-wrap justify-center">
+      <!-- Progress dots: current = bigger; past skipped = yellow; past answered = blue; future = gray -->
+      <div class="flex gap-1 md:gap-2 mt-2 flex-wrap justify-center items-center">
         <div
-          v-for="(_, i) in questions"
-          :key="i"
-          class="w-3 h-3 md:w-4 md:h-4 rounded-full transition-colors"
-          :class="{
-            'bg-indigo-600 scale-125': i === currentIndex,
-            'bg-indigo-400': i < currentIndex,
-            'bg-gray-200':  i > currentIndex,
-          }"
+          v-for="idx in questions.length"
+          :key="idx"
+          class="rounded-full transition-all duration-200 shrink-0"
+          :class="[
+            idx - 1 === currentStepIndex ? 'w-5! h-5! md:w-7! md:h-7!' : 'w-3 h-3 md:w-4 md:h-4',
+            (idx - 1 === currentStepIndex || ((idx - 1 < currentStepIndex) || (isDeferredPhase && idx - 1 !== currentStepIndex))) && skippedStepIndices.includes(idx - 1) && !answeredDeferredSteps.includes(idx - 1) ? 'bg-amber-400' : '',
+            idx - 1 === currentStepIndex && (!skippedStepIndices.includes(idx - 1) || answeredDeferredSteps.includes(idx - 1)) ? 'bg-indigo-600' : '',
+            ((idx - 1 < currentStepIndex) || (isDeferredPhase && idx - 1 !== currentStepIndex)) && (!skippedStepIndices.includes(idx - 1) || answeredDeferredSteps.includes(idx - 1)) ? 'bg-indigo-400' : '',
+            idx - 1 > currentStepIndex && !isDeferredPhase ? 'bg-gray-200' : '',
+          ]"
         />
       </div>
     </div>
@@ -67,11 +74,7 @@
       <!-- Answer display (hidden when quit modal is open) -->
       <div
         class="flex items-center justify-center rounded-2xl border-4 px-8 min-w-28 h-20 md:min-w-36 md:h-24 md:px-10 transition-all"
-        :class="[
-          typedAnswer && !showQuitConfirm ? 'border-indigo-400 bg-indigo-50' : 'border-dashed border-gray-300 bg-white',
-          answerAnimClass,
-        ]"
-        @animationend="answerAnimClass = ''"
+        :class="typedAnswer && !showQuitConfirm ? 'border-indigo-400 bg-indigo-50' : 'border-dashed border-gray-300 bg-white'"
       >
         <span
           class="font-black tabular-nums transition-all quiz-answer-text"
@@ -81,6 +84,17 @@
           {{ showQuitConfirm ? '?' : (typedAnswer || '?') }}
         </span>
       </div>
+
+      <!-- Passer button (skip, come back at end) — big touch target for kids -->
+      <button
+        v-if="!showQuitConfirm"
+        @click="skipQuestion"
+        :disabled="showFeedback || isLastQuestion"
+        class="mt-6 md:mt-8 w-full max-w-xs py-4 md:py-5 px-6 rounded-2xl text-lg md:text-xl font-bold text-amber-700 bg-amber-100 border-2 border-amber-400 shadow-md hover:bg-amber-200 active:bg-amber-300 disabled:opacity-50 disabled:pointer-events-none transition-colors select-none"
+        aria-label="Passer (revenir à la fin)"
+      >
+        Passer
+      </button>
 
     </div>
 
@@ -137,6 +151,46 @@
         </div>
       </Transition>
     </Teleport>
+
+    <!-- End quiz confirmation modal -->
+    <Teleport to="body">
+      <Transition name="modal">
+        <div
+          v-if="showEndConfirm"
+          class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
+          @click.self="cancelEndConfirm"
+        >
+          <div
+            class="modal-box bg-white rounded-2xl shadow-xl max-w-sm md:max-w-md w-full p-6 md:p-8 text-center"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="end-modal-title"
+            @click.stop
+          >
+            <h2 id="end-modal-title" class="text-lg md:text-xl font-bold text-gray-800 mb-2">
+              Terminer le quiz ?
+            </h2>
+            <p class="text-gray-600 mb-6 md:mb-8 md:text-lg">
+              Tu as répondu à toutes les questions. Tu veux voir ton score ?
+            </p>
+            <div class="flex gap-3 md:gap-4">
+              <button
+                @click="cancelEndConfirm"
+                class="flex-1 py-3 px-4 md:py-4 md:px-5 rounded-xl font-semibold md:text-lg bg-gray-100 text-gray-700 active:bg-gray-200 transition-colors"
+              >
+                Annuler
+              </button>
+              <button
+                @click="confirmEnd"
+                class="flex-1 py-3 px-4 md:py-4 md:px-5 rounded-xl font-semibold md:text-lg bg-green-500 text-white active:bg-green-600 transition-colors"
+              >
+                Terminer
+              </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
@@ -155,16 +209,44 @@ const router = useRouter()
 const questions = ref(generateQuestions(store.activeStage, store.activeDifficulty))
 const currentIndex = ref(0)
 const answers = ref([])
+const skippedStepIndices = ref([])  // indices where user clicked Passer (show yellow in stepper)
+const answeredDeferredSteps = ref([])  // step indices we skipped then answered when we came back (show blue)
 const typedAnswer = ref('')   // string built digit by digit
 const timeLeft = ref(TOTAL_SECONDS)
 const showFeedback = ref(false)
-const cardAnimClass = ref('')    // 'anim-shake' on wrong
-const answerAnimClass = ref('')  // 'anim-bounce' on correct
+const cardAnimClass = ref('')
 const showQuitConfirm = ref(false)
+const showEndConfirm = ref(false)
 
 let timerInterval = null
 
 const currentQuestion = computed(() => questions.value[currentIndex.value])
+// Which dot is "current" (bigger): main pass = steps done; deferred pass = the skipped step we're answering (dot state stays the same)
+const currentStepIndex = computed(() => {
+  const idx = currentIndex.value
+  const start = deferredStartIndex.value
+  if (idx < start) return answers.value.length + skippedStepIndices.value.length
+  const deferredPos = idx - start
+  return skippedStepIndices.value[deferredPos] ?? 0
+})
+
+// Deferred (skipped) questions start at this index; after that we show "Question 1 / N" etc.
+const deferredStartIndex = computed(() => Math.max(0, questions.value.length - skippedStepIndices.value.length))
+const isDeferredPhase = computed(() => currentIndex.value >= deferredStartIndex.value)
+
+// Displayed number: increases on each answer and each skip (1..20), then 1..numSkipped for deferred questions
+const displayedQuestionNumber = computed(() => {
+  const idx = currentIndex.value
+  const start = deferredStartIndex.value
+  if (idx < start) return answers.value.length + skippedStepIndices.value.length + 1
+  return idx - start + 1
+})
+// Total always 20, even when answering deferred (skipped) questions
+const displayedQuestionTotal = computed(() => questions.value.length)
+
+// Only disable skip when there's literally one question (nowhere to skip to)
+const isLastQuestion = computed(() => questions.value.length <= 1)
+const allQuestionsAnswered = computed(() => answers.value.length === questions.value.length)
 const formattedTime = computed(() => {
   const m = Math.floor(timeLeft.value / 60)
   const s = timeLeft.value % 60
@@ -215,18 +297,40 @@ function handleKeydown(e) {
   }
 }
 
+function skipQuestion() {
+  if (showFeedback.value || showQuitConfirm.value || isLastQuestion.value) return
+  const start = deferredStartIndex.value
+  const inDeferred = currentIndex.value >= start
+  const wasAtLastIndex = currentIndex.value === questions.value.length - 1
+  // Main pass: record step so dot turns yellow; deferred: step already in list, just advance
+  if (!inDeferred) {
+    const stepIndex = answers.value.length + skippedStepIndices.value.length
+    skippedStepIndices.value.push(stepIndex)
+  }
+  const q = currentQuestion.value
+  questions.value = [
+    ...questions.value.slice(0, currentIndex.value),
+    ...questions.value.slice(currentIndex.value + 1),
+    q,
+  ]
+  typedAnswer.value = ''
+  // Advance to next question: deferred → next deferred; main at last slot → first unanswered (deferred)
+  // Never finish here — quiz only ends when the 2-minute timer runs out
+  if (inDeferred) {
+    currentIndex.value++
+    if (currentIndex.value >= questions.value.length) currentIndex.value = deferredStartIndex.value
+  } else if (wasAtLastIndex) {
+    // Use updated deferredStartIndex (after we pushed this skip) so we land on first deferred question
+    currentIndex.value = deferredStartIndex.value
+  }
+}
+
 async function submitAnswer() {
   if (!typedAnswer.value || showFeedback.value) return
 
   const userNum = Number(typedAnswer.value)
   const correct = userNum === currentQuestion.value.answer
   showFeedback.value = true
-  // Trigger animation
-  if (correct) {
-    answerAnimClass.value = 'anim-bounce'
-  } else {
-    cardAnimClass.value = 'anim-shake'
-  }
 
   answers.value.push({
     question: currentQuestion.value.text,
@@ -235,14 +339,29 @@ async function submitAnswer() {
     correct,
   })
 
+  // When we answer a deferred (skipped) question, mark that step as answered so its dot turns blue
+  const start = deferredStartIndex.value
+  if (currentIndex.value >= start) {
+    const deferredPos = currentIndex.value - start
+    const stepIndex = skippedStepIndices.value[deferredPos]
+    if (stepIndex !== undefined) answeredDeferredSteps.value.push(stepIndex)
+  }
+
   await new Promise((r) => setTimeout(r, FEEDBACK_DELAY))
 
   if (currentIndex.value < questions.value.length - 1) {
     currentIndex.value++
     typedAnswer.value = ''
     showFeedback.value = false
+  } else if (skippedStepIndices.value.length > 0) {
+    // Go directly to the first skipped question instead of showing results
+    currentIndex.value = deferredStartIndex.value
+    typedAnswer.value = ''
+    showFeedback.value = false
   } else {
-    finishQuiz()
+    // All answered, no skipped — stay on last question and wait for the 2-minute timer
+    typedAnswer.value = ''
+    showFeedback.value = false
   }
 }
 
@@ -288,6 +407,19 @@ function cancelQuit() {
 
 function confirmQuit() {
   quitQuiz()
+}
+
+function openEndConfirm() {
+  showEndConfirm.value = true
+}
+
+function cancelEndConfirm() {
+  showEndConfirm.value = false
+}
+
+function confirmEnd() {
+  showEndConfirm.value = false
+  finishQuiz()
 }
 
 onMounted(() => {
@@ -337,31 +469,5 @@ onUnmounted(() => {
 .modal-enter-from .modal-box,
 .modal-leave-to .modal-box {
   transform: scale(0.95);
-}
-
-/* Wrong answer — card shakes side-to-side */
-.anim-shake {
-  animation: shake 0.45s ease-in-out;
-}
-@keyframes shake {
-  0%,100% { transform: translateX(0); }
-  15%     { transform: translateX(-10px); }
-  30%     { transform: translateX(10px); }
-  45%     { transform: translateX(-7px); }
-  60%     { transform: translateX(7px); }
-  75%     { transform: translateX(-4px); }
-  90%     { transform: translateX(4px); }
-}
-
-/* Correct answer — answer box bounces */
-.anim-bounce {
-  animation: bounce-answer 0.5s ease-out;
-}
-@keyframes bounce-answer {
-  0%   { transform: scale(1); }
-  25%  { transform: scale(1.25); }
-  55%  { transform: scale(0.92); }
-  75%  { transform: scale(1.08); }
-  100% { transform: scale(1); }
 }
 </style>
