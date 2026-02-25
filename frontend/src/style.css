@@ -9,7 +9,11 @@
 
   body {
     min-height: 100vh;
+    min-height: 100dvh;
     min-height: -webkit-fill-available;
+    /* Respect iPad safe areas (notch, home indicator) */
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
   }
 
   /* Prevent double-tap zoom on all interactive elements */

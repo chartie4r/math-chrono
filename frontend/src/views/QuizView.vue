@@ -1,35 +1,44 @@
 <template>
-  <div class="flex flex-col min-h-screen min-h-dvh px-3 pt-6 pb-4 max-w-lg mx-auto">
+  <div class="flex flex-col min-h-dvh px-4 pt-6 pb-6 md:px-8 md:pt-8 md:pb-8 w-full mx-auto">
 
     <!-- ── Top bar ── -->
-    <div class="w-full mb-3">
-      <div class="flex items-center justify-between mb-2">
-        <span class="text-sm font-bold text-gray-500">
+    <div class="w-full mb-3 md:mb-4">
+      <div class="flex items-center justify-between gap-2 mb-2">
+        <span class="text-sm md:text-base font-bold text-gray-500">
           Question <span class="text-indigo-600">{{ currentIndex + 1 }}</span> / {{ questions.length }}
         </span>
-        <span
-          class="text-xl font-black tabular-nums transition-colors"
-          :class="timeLeft <= warningThreshold ? 'text-red-500 animate-pulse' : 'text-indigo-600'"
-        >
-          ⏱ {{ formattedTime }}
-        </span>
+        <div class="flex items-center gap-3 md:gap-4">
+          <span
+            class="text-xl md:text-2xl font-black tabular-nums transition-colors"
+            :class="timeLeft <= warningThreshold ? 'text-red-500 animate-pulse' : 'text-indigo-600'"
+          >
+            ⏱ {{ formattedTime }}
+          </span>
+          <button
+            @click="openQuitConfirm"
+            class="text-sm md:text-base font-semibold text-red-600 bg-red-50 border border-red-300 rounded-xl py-2 px-4 md:py-2.5 md:px-5 min-h-[44px] flex items-center justify-center shrink-0 shadow-sm hover:bg-red-100 active:bg-red-200 transition-colors select-none"
+            aria-label="Quitter le quiz"
+          >
+            Quitter
+          </button>
+        </div>
       </div>
 
       <!-- Timer bar -->
-      <div class="w-full h-3 bg-gray-200 rounded-full overflow-hidden">
+      <div class="w-full h-3 md:h-4 bg-gray-200 rounded-full overflow-hidden">
         <div
-          class="h-3 rounded-full transition-all duration-1000"
+          class="h-3 md:h-4 rounded-full transition-all duration-1000"
           :class="timeLeft <= warningThreshold ? 'bg-red-400' : 'bg-indigo-500'"
           :style="{ width: timerPercent + '%' }"
         />
       </div>
 
       <!-- Progress dots -->
-      <div class="flex gap-1 mt-2 flex-wrap justify-center">
+      <div class="flex gap-1 md:gap-2 mt-2 flex-wrap justify-center">
         <div
           v-for="(_, i) in questions"
           :key="i"
-          class="w-3 h-3 rounded-full transition-colors"
+          class="w-3 h-3 md:w-4 md:h-4 rounded-full transition-colors"
           :class="{
             'bg-indigo-600 scale-125': i === currentIndex,
             'bg-green-400': i < currentIndex && answers[i]?.correct,
@@ -42,56 +51,56 @@
 
     <!-- ── Question card ── -->
     <div
-      class="flex-1 flex flex-col items-center justify-center w-full rounded-3xl shadow-xl border-2 transition-all duration-200 py-6 px-6 mb-4 min-h-0"
+      class="flex-1 flex flex-col items-center justify-center w-full rounded-3xl shadow-xl border-2 transition-all duration-200 py-6 px-6 md:py-10 md:px-10 mb-4 md:mb-6 min-h-0"
       :class="[feedbackClass, cardAnimClass]"
       @animationend="cardAnimClass = ''"
     >
-      <p class="text-xs font-bold text-indigo-300 uppercase tracking-widest mb-3">
+      <p class="text-xs md:text-sm font-bold text-indigo-300 uppercase tracking-widest mb-3 md:mb-4">
         {{ store.activeStage.name }} · {{ store.activeDifficulty.emoji }} {{ store.activeDifficulty.label }}
       </p>
 
-      <!-- Question -->
-      <p class="font-black text-gray-800 leading-none text-center mb-6"
+      <!-- Question (hidden when quit modal is open to avoid giving extra time) -->
+      <p class="font-black text-gray-800 leading-none text-center mb-6 md:mb-8 quiz-question-text"
          style="font-size: clamp(2.5rem, 10vw, 5rem)">
-        {{ currentQuestion?.text }} =
+        {{ showQuitConfirm ? '?' : currentQuestion?.text }} =
       </p>
 
-      <!-- Answer display -->
+      <!-- Answer display (hidden when quit modal is open) -->
       <div
-        class="flex items-center justify-center rounded-2xl border-4 px-8 min-w-28 h-20 transition-all"
+        class="flex items-center justify-center rounded-2xl border-4 px-8 min-w-28 h-20 md:min-w-36 md:h-24 md:px-10 transition-all"
         :class="[
-          typedAnswer ? 'border-indigo-400 bg-indigo-50' : 'border-dashed border-gray-300 bg-white',
+          typedAnswer && !showQuitConfirm ? 'border-indigo-400 bg-indigo-50' : 'border-dashed border-gray-300 bg-white',
           answerAnimClass,
         ]"
         @animationend="answerAnimClass = ''"
       >
         <span
-          class="font-black tabular-nums transition-all"
+          class="font-black tabular-nums transition-all quiz-answer-text"
           style="font-size: clamp(2rem, 8vw, 3.5rem)"
-          :class="typedAnswer ? 'text-indigo-700' : 'text-gray-300'"
+          :class="(typedAnswer && !showQuitConfirm) ? 'text-indigo-700' : 'text-gray-300'"
         >
-          {{ typedAnswer || '?' }}
+          {{ showQuitConfirm ? '?' : (typedAnswer || '?') }}
         </span>
       </div>
 
       <!-- Feedback -->
       <transition name="pop">
-        <div v-if="showFeedback" class="mt-4 text-center">
-          <p v-if="lastCorrect" class="text-2xl font-black text-green-500">✅ Correct !</p>
-          <p v-else class="text-xl font-black text-red-500">
-            ❌ La réponse était <span class="text-2xl">{{ currentQuestion?.answer }}</span>
+        <div v-if="showFeedback" class="mt-4 md:mt-5 text-center">
+          <p v-if="lastCorrect" class="text-2xl md:text-3xl font-black text-green-500">✅ Correct !</p>
+          <p v-else class="text-xl md:text-2xl font-black text-red-500">
+            ❌ La réponse était <span class="text-2xl md:text-3xl">{{ currentQuestion?.answer }}</span>
           </p>
         </div>
       </transition>
     </div>
 
-    <!-- ── Numpad ── -->
-    <div class="w-full grid grid-cols-3 gap-2 mb-2">
+    <!-- Numpad (disabled when quit modal is open) -->
+    <div class="w-full grid grid-cols-3 gap-3 md:gap-4 mb-1">
       <button
         v-for="key in numpadKeys"
         :key="key.label"
         @click="handleKey(key)"
-        :disabled="showFeedback || (key.action === 'submit' && !typedAnswer)"
+        :disabled="showFeedback || showQuitConfirm || (key.action === 'submit' && !typedAnswer)"
         class="select-none rounded-2xl font-black transition-all active:scale-90 flex items-center justify-center"
         :class="[key.style, numpadHeight]"
       >
@@ -99,13 +108,45 @@
       </button>
     </div>
 
-    <!-- Quit -->
-    <button
-      @click="quitQuiz"
-      class="w-full py-2 text-sm font-semibold text-gray-400 active:text-gray-600 transition-colors select-none"
-    >
-      Quitter le quiz
-    </button>
+    <!-- Quit confirmation modal (pauses quiz, hides calculation) -->
+    <Teleport to="body">
+      <Transition name="modal">
+        <div
+          v-if="showQuitConfirm"
+          class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
+          @click.self="cancelQuit"
+        >
+          <div
+            class="modal-box bg-white rounded-2xl shadow-xl max-w-sm md:max-w-md w-full p-6 md:p-8 text-center"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="quit-modal-title"
+            @click.stop
+          >
+            <h2 id="quit-modal-title" class="text-lg md:text-xl font-bold text-gray-800 mb-2">
+              Quitter le quiz ?
+            </h2>
+            <p class="text-gray-600 mb-6 md:mb-8 md:text-lg">
+              Ta progression sera perdue. Tu es sûr ?
+            </p>
+            <div class="flex gap-3 md:gap-4">
+              <button
+                @click="cancelQuit"
+                class="flex-1 py-3 px-4 md:py-4 md:px-5 rounded-xl font-semibold md:text-lg bg-gray-100 text-gray-700 active:bg-gray-200 transition-colors"
+              >
+                Annuler
+              </button>
+              <button
+                @click="confirmQuit"
+                class="flex-1 py-3 px-4 md:py-4 md:px-5 rounded-xl font-semibold md:text-lg bg-red-500 text-white active:bg-red-600 transition-colors"
+              >
+                Quitter
+              </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
@@ -130,6 +171,7 @@ const showFeedback = ref(false)
 const lastCorrect = ref(false)
 const cardAnimClass = ref('')    // 'anim-shake' on wrong
 const answerAnimClass = ref('')  // 'anim-bounce' on correct
+const showQuitConfirm = ref(false)
 
 let timerInterval = null
 
@@ -147,24 +189,24 @@ const feedbackClass = computed(() => {
   return lastCorrect.value ? 'border-green-300 bg-green-50' : 'border-red-300 bg-red-50'
 })
 
-// Numpad layout — rows: 7 8 9 / 4 5 6 / 1 2 3 / ⌫ 0 ✓
+// Numpad layout — rows: 7 8 9 / 4 5 6 / 1 2 3 / ⌫ 0 ✓ (text sizes responsive for iPad)
 const numpadKeys = [
-  { label: '7', action: 'digit', style: 'bg-white shadow border border-gray-200 text-gray-800 active:bg-gray-100', textSize: 'text-3xl' },
-  { label: '8', action: 'digit', style: 'bg-white shadow border border-gray-200 text-gray-800 active:bg-gray-100', textSize: 'text-3xl' },
-  { label: '9', action: 'digit', style: 'bg-white shadow border border-gray-200 text-gray-800 active:bg-gray-100', textSize: 'text-3xl' },
-  { label: '4', action: 'digit', style: 'bg-white shadow border border-gray-200 text-gray-800 active:bg-gray-100', textSize: 'text-3xl' },
-  { label: '5', action: 'digit', style: 'bg-white shadow border border-gray-200 text-gray-800 active:bg-gray-100', textSize: 'text-3xl' },
-  { label: '6', action: 'digit', style: 'bg-white shadow border border-gray-200 text-gray-800 active:bg-gray-100', textSize: 'text-3xl' },
-  { label: '1', action: 'digit', style: 'bg-white shadow border border-gray-200 text-gray-800 active:bg-gray-100', textSize: 'text-3xl' },
-  { label: '2', action: 'digit', style: 'bg-white shadow border border-gray-200 text-gray-800 active:bg-gray-100', textSize: 'text-3xl' },
-  { label: '3', action: 'digit', style: 'bg-white shadow border border-gray-200 text-gray-800 active:bg-gray-100', textSize: 'text-3xl' },
-  { label: '⌫',  action: 'backspace', style: 'bg-gray-100 shadow border border-gray-200 text-gray-500 active:bg-gray-200', textSize: 'text-2xl' },
-  { label: '0', action: 'digit',     style: 'bg-white shadow border border-gray-200 text-gray-800 active:bg-gray-100', textSize: 'text-3xl' },
-  { label: '✓',  action: 'submit',   style: 'bg-green-500 shadow-md text-white disabled:bg-gray-300 disabled:shadow-none active:bg-green-600', textSize: 'text-3xl' },
+  { label: '7', action: 'digit', style: 'bg-white shadow border border-gray-200 text-gray-800 active:bg-gray-100', textSize: 'text-3xl md:text-4xl' },
+  { label: '8', action: 'digit', style: 'bg-white shadow border border-gray-200 text-gray-800 active:bg-gray-100', textSize: 'text-3xl md:text-4xl' },
+  { label: '9', action: 'digit', style: 'bg-white shadow border border-gray-200 text-gray-800 active:bg-gray-100', textSize: 'text-3xl md:text-4xl' },
+  { label: '4', action: 'digit', style: 'bg-white shadow border border-gray-200 text-gray-800 active:bg-gray-100', textSize: 'text-3xl md:text-4xl' },
+  { label: '5', action: 'digit', style: 'bg-white shadow border border-gray-200 text-gray-800 active:bg-gray-100', textSize: 'text-3xl md:text-4xl' },
+  { label: '6', action: 'digit', style: 'bg-white shadow border border-gray-200 text-gray-800 active:bg-gray-100', textSize: 'text-3xl md:text-4xl' },
+  { label: '1', action: 'digit', style: 'bg-white shadow border border-gray-200 text-gray-800 active:bg-gray-100', textSize: 'text-3xl md:text-4xl' },
+  { label: '2', action: 'digit', style: 'bg-white shadow border border-gray-200 text-gray-800 active:bg-gray-100', textSize: 'text-3xl md:text-4xl' },
+  { label: '3', action: 'digit', style: 'bg-white shadow border border-gray-200 text-gray-800 active:bg-gray-100', textSize: 'text-3xl md:text-4xl' },
+  { label: '⌫',  action: 'backspace', style: 'bg-gray-100 shadow border border-gray-200 text-gray-500 active:bg-gray-200', textSize: 'text-2xl md:text-3xl' },
+  { label: '0', action: 'digit',     style: 'bg-white shadow border border-gray-200 text-gray-800 active:bg-gray-100', textSize: 'text-3xl md:text-4xl' },
+  { label: '✓',  action: 'submit',   style: 'bg-green-500 shadow-md text-white disabled:bg-gray-300 disabled:shadow-none active:bg-green-600', textSize: 'text-3xl md:text-4xl' },
 ]
 
-// Taller buttons on larger screens (iPad)
-const numpadHeight = 'h-16 sm:h-20'
+// Taller buttons on tablet (iPad Air 11"/13") — big touch targets for kids
+const numpadHeight = 'h-14 sm:h-20 md:h-24 min-h-[52px]'
 
 function handleKey(key) {
   if (showFeedback.value) return
@@ -179,7 +221,7 @@ function handleKey(key) {
 
 // Physical keyboard support (desktop / iPad external keyboard)
 function handleKeydown(e) {
-  if (showFeedback.value) return
+  if (showFeedback.value || showQuitConfirm.value) return
   if (e.key >= '0' && e.key <= '9') {
     if (typedAnswer.value.length < 3) typedAnswer.value += e.key
   } else if (e.key === 'Backspace') {
@@ -235,7 +277,34 @@ function finishQuiz() {
 
 function quitQuiz() {
   clearInterval(timerInterval)
+  timerInterval = null
   router.push('/')
+}
+
+function openQuitConfirm() {
+  showQuitConfirm.value = true
+  clearInterval(timerInterval)
+  timerInterval = null
+}
+
+function cancelQuit() {
+  showQuitConfirm.value = false
+  if (timerInterval === null) {
+    timerInterval = setInterval(() => {
+      timeLeft.value--
+      if (timeLeft.value <= 0) {
+        while (answers.value.length < questions.value.length) {
+          const q = questions.value[answers.value.length]
+          answers.value.push({ question: q.text, userAnswer: null, correctAnswer: q.answer, correct: false })
+        }
+        finishQuiz()
+      }
+    }, 1000)
+  }
+}
+
+function confirmQuit() {
+  quitQuiz()
 }
 
 onMounted(() => {
@@ -259,6 +328,34 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+/* iPad and up: larger question/answer text to fill the viewport */
+@media (min-width: 768px) {
+  .quiz-question-text {
+    font-size: clamp(3rem, 8vw, 6rem);
+  }
+  .quiz-answer-text {
+    font-size: clamp(2.5rem, 6vw, 4rem);
+  }
+}
+
+/* Modal overlay */
+.modal-enter-active,
+.modal-leave-active {
+  transition: opacity 0.2s ease;
+}
+.modal-enter-active .modal-box,
+.modal-leave-active .modal-box {
+  transition: transform 0.2s ease;
+}
+.modal-enter-from,
+.modal-leave-to {
+  opacity: 0;
+}
+.modal-enter-from .modal-box,
+.modal-leave-to .modal-box {
+  transform: scale(0.95);
+}
+
 /* Feedback text pop */
 .pop-enter-active { animation: pop-in 0.22s ease-out; }
 .pop-leave-active { animation: pop-in 0.15s ease-in reverse; }
